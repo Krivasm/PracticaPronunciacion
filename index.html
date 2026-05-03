@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PronouncePerfect - Tu Tutor de Inglés</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .word-correct { color: #10b981; font-weight: 600; }
+        .word-incorrect { color: #ef4444; text-decoration: underline; font-weight: 600; cursor: pointer; transition: color 0.2s ease; }
+        .word-incorrect:hover { color: #b91c1c; }
+        .word-pending { color: #6b7280; }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        
+        button, select {
+            touch-action: manipulation;
+        }
+        
+        #display-text-container {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased">
+
+    <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-6 sm:mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-indigo-600 mb-2">PronouncePerfect</h1>
+            <p class="text-slate-500 text-sm sm:text-base">Domina tu pronunciación con IA</p>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-xl p-5 sm:p-8 md:p-10 mb-6 border border-slate-100">
+            <!-- Step 1: Input Text -->
+            <div id="step-input" class="space-y-4">
+                <label class="block text-sm font-semibold text-slate-700">Introduce el texto que quieres practicar:</label>
+                <textarea id="text-input" class="w-full p-4 border border-slate-200 rounded-xl h-40 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-base" placeholder="Ej: #Hello! I'm practicing English..."></textarea>
+                <button onclick="startPractice()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-lg">
+                    Comenzar Práctica <i class="fas fa-arrow-right text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Step 2: Practice Mode -->
+            <div id="step-practice" class="hidden space-y-6 sm:space-y-8">
+                <div class="bg-slate-50 p-5 sm:p-7 rounded-2xl border-2 border-indigo-50 min-h-[120px] text-lg sm:text-xl leading-relaxed text-center" id="display-text-container"></div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs sm:text-sm font-bold uppercase tracking-wider">
+                        <span class="text-slate-500">Precisión actual</span>
+                        <span id="accuracy-percent" class="text-indigo-600">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3 sm:h-4 overflow-hidden">
+                        <div id="accuracy-bar" class="bg-indigo-600 h-full rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <div class="flex justify-center">
+                        <div class="relative w-full sm:w-64">
+                            <select id="speed-selector" class="block w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer shadow-sm text-sm text-center">
+                                <option value="0.9">Velocidad: Normal</option>
+                                <option value="0.6">Velocidad: Lenta</option>
+                                <option value="0.4">Velocidad: Muy Lenta</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <button id="listen-btn" onclick="toggleListen()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-4 rounded-xl flex flex-row sm:flex-col items-center justify-center gap-3 transition-all border border-indigo-100">
+                            <i id="listen-icon" class="fas fa-volume-up text-xl sm:text-2xl"></i>
+                            <span id="listen-text" class="text-sm sm:text-base">Escuchar Correcto</span>
+                        </button>
+                        <button id="record-btn" onclick="requestMicAndToggle()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex flex-row sm:flex-col items-center justify-center gap-3 transition-all relative shadow-lg">
+                            <i id="mic-icon" class="fas fa-microphone text-xl sm:text-2xl"></i>
+                            <span id="record-text" class="text-sm sm:text-base">Presiona para Leer</span>
+                            <div id="recording-dot" class="absolute top-2 right-2 w-2 h-2 bg-white rounded-full hidden pulse"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="feedback-area" class="hidden p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <p id="feedback-msg" class="text-indigo-900 text-sm italic text-center font-medium"></p>
+                </div>
+
+                <button onclick="resetApp()" class="w-full text-slate-400 hover:text-indigo-500 text-xs sm:text-sm mt-4 transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-edit"></i> Cambiar texto original
+                </button>
+            </div>
+        </div>
+
+        <footer class="text-center text-slate-400 text-xs">
+            <p>&copy; 2024 PronouncePerfect - Práctica Interactiva</p>
+        </footer>
+
+        <div id="success-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-all">
+                <div class="text-6xl mb-4">🏆</div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">¡Nivel Experto!</h2>
+                <p class="text-slate-600 mb-6 text-base">Tu pronunciación es perfecta. ¡Sigue así!</p>
+                <button onclick="closeModal()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
+                    Nuevo desafío
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = ""; 
+        let originalText = "";
+        let originalWords = [];
+        let isRecording = false;
+        let isSpeaking = false;
+        let recognition = null;
+        let finalTranscript = "";
+        let micPermissionGranted = false;
+
+        function cleanWord(word) {
+            return word.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        }
+
+        // Detección mejorada de compatibilidad
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                showFeedback(`Escuchando: "${finalTranscript}${interimTranscript}"`);
+            };
+
+            recognition.onend = () => {
+                stopVisualRecording();
+                if (finalTranscript.trim() !== "") {
+                    processVoiceInput(finalTranscript.trim());
+                }
+            };
+
+            recognition.onerror = (err) => {
+                console.error("Recognition error:", err.error);
+                stopVisualRecording();
+                if (err.error === 'not-allowed') {
+                    showFeedback("Permiso de micrófono denegado. Actívalo en los ajustes del sitio.");
+                } else if (err.error === 'network') {
+                    showFeedback("Error de red. Asegúrate de tener conexión a internet.");
+                } else {
+                    showFeedback("Error de grabación. Intenta de nuevo.");
+                }
+            };
+        }
+
+        async function requestMicAndToggle() {
+            // Inicializar audio context para "despertar" el motor de audio en móviles
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    const audioCtx = new AudioContext();
+                    if (audioCtx.state === 'suspended') {
+                        await audioCtx.resume();
+                    }
+                }
+            } catch (e) {
+                console.log("AudioContext not supported or already running");
+            }
+
+            if (!micPermissionGranted) {
+                try {
+                    showFeedback("Solicitando acceso al micrófono...");
+                    // Esta llamada fuerza el pop-up de permisos en el navegador
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Detenemos el stream inmediatamente después de obtener el permiso
+                    stream.getTracks().forEach(track => track.stop());
+                    micPermissionGranted = true;
+                    toggleRecording();
+                } catch (err) {
+                    console.error("Mic Permission Error:", err);
+                    showFeedback("Error: No se pudo obtener permiso para usar el micrófono.");
+                }
+            } else {
+                toggleRecording();
+            }
+        }
+
+        async function startPractice() {
+            const input = document.getElementById('text-input').value.trim();
+            if (!input) return;
+
+            originalText = input;
+            originalWords = originalText.split(/\s+/).filter(w => w.length > 0).map(w => ({
+                original: w,
+                clean: cleanWord(w),
+                status: 'pending'
+            }));
+
+            renderWords();
+            document.getElementById('step-input').classList.add('hidden');
+            document.getElementById('step-practice').classList.remove('hidden');
+        }
+
+        function renderWords() {
+            const container = document.getElementById('display-text-container');
+            container.innerHTML = originalWords.map((word, index) => {
+                let statusClass = 'word-pending';
+                let onClickAttr = '';
+                let titleAttr = '';
+                
+                if (word.status === 'correct') statusClass = 'word-correct';
+                if (word.status === 'incorrect') {
+                    statusClass = 'word-incorrect';
+                    const safeWord = word.original.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    onClickAttr = `onclick="speakSingleWord('${safeWord}')"`;
+                    titleAttr = `title="Haz clic para escuchar"`;
+                }
+                
+                return `<span class="${statusClass} inline-block px-1 rounded-md transition-all duration-200" data-index="${index}" ${onClickAttr} ${titleAttr}>${word.original}</span>`;
+            }).join(' ');
+        }
+
+        function toggleListen() {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                setSpeakingState(false);
+            } else {
+                listenToCorrect();
+            }
+        }
+
+        function listenToCorrect() {
+            window.speechSynthesis.cancel();
+            const speed = parseFloat(document.getElementById('speed-selector').value);
+            const utterance = new SpeechSynthesisUtterance(originalText);
+            utterance.lang = 'en-US';
+            utterance.rate = speed;
+
+            utterance.onstart = () => setSpeakingState(true);
+            utterance.onend = () => setSpeakingState(false);
+            utterance.onerror = () => setSpeakingState(false);
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function setSpeakingState(state) {
+            isSpeaking = state;
+            const btn = document.getElementById('listen-btn');
+            const icon = document.getElementById('listen-icon');
+            const text = document.getElementById('listen-text');
+
+            if (state) {
+                btn.classList.replace('bg-indigo-50', 'bg-indigo-600');
+                btn.classList.replace('text-indigo-700', 'text-white');
+                icon.classList.replace('fa-volume-up', 'fa-stop');
+                text.innerText = "Detener";
+            } else {
+                btn.classList.replace('bg-indigo-600', 'bg-indigo-50');
+                btn.classList.replace('text-white', 'text-indigo-700');
+                icon.classList.replace('fa-stop', 'fa-volume-up');
+                text.innerText = "Escuchar Correcto";
+            }
+        }
+
+        function speakSingleWord(word) {
+            window.speechSynthesis.cancel();
+            const wordToSpeak = cleanWord(word);
+            const speed = parseFloat(document.getElementById('speed-selector').value);
+            const utterance = new SpeechSynthesisUtterance(wordToSpeak);
+            utterance.lang = 'en-US';
+            utterance.rate = speed;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                showFeedback("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Safari.");
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                    setSpeakingState(false);
+                }
+                finalTranscript = "";
+                startVisualRecording();
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error("Recognition start error:", e);
+                    stopVisualRecording();
+                    showFeedback("Error al iniciar grabación. Recarga la página.");
+                }
+            }
+        }
+
+        function startVisualRecording() {
+            isRecording = true;
+            document.getElementById('record-btn').classList.replace('bg-rose-500', 'bg-rose-700');
+            document.getElementById('mic-icon').classList.replace('fa-microphone', 'fa-stop');
+            document.getElementById('record-text').innerText = "Presiona al terminar";
+            document.getElementById('recording-dot').classList.remove('hidden');
+            document.getElementById('feedback-area').classList.remove('hidden');
+            showFeedback("Escuchando tu voz...");
+        }
+
+        function stopVisualRecording() {
+            isRecording = false;
+            document.getElementById('record-btn').classList.replace('bg-rose-700', 'bg-rose-500');
+            document.getElementById('mic-icon').classList.replace('fa-stop', 'fa-microphone');
+            document.getElementById('record-text').innerText = "Presiona para Leer";
+            document.getElementById('recording-dot').classList.add('hidden');
+        }
+
+        async function processVoiceInput(transcript) {
+            showFeedback(`Evaluando...`);
+            try {
+                const result = await analyzePronunciation(originalText, transcript);
+                updateUI(result);
+            } catch (error) {
+                console.error("AI Error:", error);
+                fallbackComparison(transcript);
+            }
+        }
+
+        async function analyzePronunciation(target, spoken) {
+            const systemPrompt = "Analyze the user's spoken text compared to the target text in English. Ignore special characters. Return a JSON object with a 'results' array: { 'word': string, 'isCorrect': boolean }.";
+            const userQuery = `Target: "${target}"\nSpoken: "${spoken}"`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                results: {
+                                    type: "ARRAY",
+                                    items: {
+                                        type: "OBJECT",
+                                        properties: {
+                                            word: { type: "STRING" },
+                                            isCorrect: { type: "BOOLEAN" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            });
+
+            if (!response.ok) throw new Error('API request failed');
+            const data = await response.json();
+            return JSON.parse(data.candidates[0].content.parts[0].text);
+        }
+
+        function updateUI(analysis) {
+            let correctCount = 0;
+            originalWords.forEach((wordObj) => {
+                const aiResult = analysis.results.find(r => cleanWord(r.word) === wordObj.clean);
+                if (aiResult) {
+                    wordObj.status = aiResult.isCorrect ? 'correct' : 'incorrect';
+                } else {
+                    wordObj.status = 'incorrect';
+                }
+                if (wordObj.status === 'correct') correctCount++;
+            });
+
+            const accuracy = Math.round((correctCount / originalWords.length) * 100);
+            document.getElementById('accuracy-bar').style.width = `${accuracy}%`;
+            document.getElementById('accuracy-percent').innerText = `${accuracy}%`;
+            renderWords();
+
+            if (accuracy === 100) {
+                document.getElementById('success-modal').classList.remove('hidden');
+                showFeedback("¡Excelente pronunciación!");
+            } else {
+                showFeedback("¡Sigue practicando! Toca las palabras en rojo para escucharlas.");
+            }
+        }
+
+        function fallbackComparison(transcript) {
+            const spokenWordsClean = transcript.toLowerCase().split(/\s+/).map(w => cleanWord(w));
+            let correctCount = 0;
+            originalWords.forEach(word => {
+                if (spokenWordsClean.includes(word.clean)) {
+                    word.status = 'correct';
+                    correctCount++;
+                } else {
+                    word.status = 'incorrect';
+                }
+            });
+            const accuracy = Math.round((correctCount / originalWords.length) * 100);
+            document.getElementById('accuracy-bar').style.width = `${accuracy}%`;
+            document.getElementById('accuracy-percent').innerText = `${accuracy}%`;
+            renderWords();
+        }
+
+        function showFeedback(msg) {
+            const area = document.getElementById('feedback-area');
+            const text = document.getElementById('feedback-msg');
+            area.classList.remove('hidden');
+            text.innerText = msg;
+        }
+
+        function resetApp() {
+            window.speechSynthesis.cancel();
+            document.getElementById('step-practice').classList.add('hidden');
+            document.getElementById('step-input').classList.remove('hidden');
+            document.getElementById('accuracy-bar').style.width = '0%';
+            document.getElementById('accuracy-percent').innerText = '0%';
+            document.getElementById('feedback-area').classList.add('hidden');
+            setSpeakingState(false);
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').classList.add('hidden');
+            resetApp();
+        }
+    </script>
+</body>
+</html>
