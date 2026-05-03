@@ -14,10 +14,12 @@
         .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         
+        /* Mejoras para táctil */
         button, select {
             touch-action: manipulation;
         }
         
+        /* Ajuste de scroll para texto largo */
         #display-text-container {
             word-wrap: break-word;
             overflow-wrap: break-word;
@@ -32,7 +34,9 @@
             <p class="text-slate-500 text-sm sm:text-base">Domina tu pronunciación con IA</p>
         </header>
 
+        <!-- Main Content Card -->
         <div class="bg-white rounded-2xl shadow-xl p-5 sm:p-8 md:p-10 mb-6 border border-slate-100">
+            
             <!-- Step 1: Input Text -->
             <div id="step-input" class="space-y-4">
                 <label class="block text-sm font-semibold text-slate-700">Introduce el texto que quieres practicar:</label>
@@ -44,8 +48,13 @@
 
             <!-- Step 2: Practice Mode -->
             <div id="step-practice" class="hidden space-y-6 sm:space-y-8">
-                <div class="bg-slate-50 p-5 sm:p-7 rounded-2xl border-2 border-indigo-50 min-h-[120px] text-lg sm:text-xl leading-relaxed text-center" id="display-text-container"></div>
+                
+                <!-- Display Text with Highlighting -->
+                <div class="bg-slate-50 p-5 sm:p-7 rounded-2xl border-2 border-indigo-50 min-h-[120px] text-lg sm:text-xl leading-relaxed text-center" id="display-text-container">
+                    <!-- Words injected here -->
+                </div>
 
+                <!-- Progress Bar -->
                 <div class="space-y-2">
                     <div class="flex justify-between items-center text-xs sm:text-sm font-bold uppercase tracking-wider">
                         <span class="text-slate-500">Precisión actual</span>
@@ -56,10 +65,11 @@
                     </div>
                 </div>
 
+                <!-- Controls -->
                 <div class="space-y-5">
                     <div class="flex justify-center">
                         <div class="relative w-full sm:w-64">
-                            <select id="speed-selector" class="block w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer shadow-sm text-sm text-center">
+                            <select id="speed-selector" class="block w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer shadow-sm text-sm">
                                 <option value="0.9">Velocidad: Normal</option>
                                 <option value="0.6">Velocidad: Lenta</option>
                                 <option value="0.4">Velocidad: Muy Lenta</option>
@@ -74,7 +84,7 @@
                             <i id="listen-icon" class="fas fa-volume-up text-xl sm:text-2xl"></i>
                             <span id="listen-text" class="text-sm sm:text-base">Escuchar Correcto</span>
                         </button>
-                        <button id="record-btn" onclick="requestMicAndToggle()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex flex-row sm:flex-col items-center justify-center gap-3 transition-all relative shadow-lg">
+                        <button id="record-btn" onclick="toggleRecording()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-xl flex flex-row sm:flex-col items-center justify-center gap-3 transition-all relative shadow-lg">
                             <i id="mic-icon" class="fas fa-microphone text-xl sm:text-2xl"></i>
                             <span id="record-text" class="text-sm sm:text-base">Presiona para Leer</span>
                             <div id="recording-dot" class="absolute top-2 right-2 w-2 h-2 bg-white rounded-full hidden pulse"></div>
@@ -82,6 +92,7 @@
                     </div>
                 </div>
 
+                <!-- Feedback Area -->
                 <div id="feedback-area" class="hidden p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
                     <p id="feedback-msg" class="text-indigo-900 text-sm italic text-center font-medium"></p>
                 </div>
@@ -96,6 +107,7 @@
             <p>&copy; 2024 PronouncePerfect - Práctica Interactiva</p>
         </footer>
 
+        <!-- Success Modal -->
         <div id="success-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
             <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-all">
                 <div class="text-6xl mb-4">🏆</div>
@@ -116,17 +128,16 @@
         let isSpeaking = false;
         let recognition = null;
         let finalTranscript = "";
-        let micPermissionGranted = false;
 
+        // Función para limpiar palabras de cualquier carácter especial
         function cleanWord(word) {
+            // Elimina todo lo que no sea letra o número
             return word.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         }
 
-        // Detección mejorada de compatibilidad
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
+        // Initialize Speech Recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
@@ -147,52 +158,16 @@
                 stopVisualRecording();
                 if (finalTranscript.trim() !== "") {
                     processVoiceInput(finalTranscript.trim());
+                } else {
+                    showFeedback("No se detectó audio. Por favor, intenta de nuevo.");
                 }
             };
 
             recognition.onerror = (err) => {
-                console.error("Recognition error:", err.error);
+                console.error("Recognition error:", err);
                 stopVisualRecording();
-                if (err.error === 'not-allowed') {
-                    showFeedback("Permiso de micrófono denegado. Actívalo en los ajustes del sitio.");
-                } else if (err.error === 'network') {
-                    showFeedback("Error de red. Asegúrate de tener conexión a internet.");
-                } else {
-                    showFeedback("Error de grabación. Intenta de nuevo.");
-                }
+                showFeedback("Error de micrófono. Revisa los permisos e intenta de nuevo.");
             };
-        }
-
-        async function requestMicAndToggle() {
-            // Inicializar audio context para "despertar" el motor de audio en móviles
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (AudioContext) {
-                    const audioCtx = new AudioContext();
-                    if (audioCtx.state === 'suspended') {
-                        await audioCtx.resume();
-                    }
-                }
-            } catch (e) {
-                console.log("AudioContext not supported or already running");
-            }
-
-            if (!micPermissionGranted) {
-                try {
-                    showFeedback("Solicitando acceso al micrófono...");
-                    // Esta llamada fuerza el pop-up de permisos en el navegador
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    // Detenemos el stream inmediatamente después de obtener el permiso
-                    stream.getTracks().forEach(track => track.stop());
-                    micPermissionGranted = true;
-                    toggleRecording();
-                } catch (err) {
-                    console.error("Mic Permission Error:", err);
-                    showFeedback("Error: No se pudo obtener permiso para usar el micrófono.");
-                }
-            } else {
-                toggleRecording();
-            }
         }
 
         async function startPractice() {
@@ -200,6 +175,7 @@
             if (!input) return;
 
             originalText = input;
+            // Dividir por espacios pero mantener la palabra original para mostrarla
             originalWords = originalText.split(/\s+/).filter(w => w.length > 0).map(w => ({
                 original: w,
                 clean: cleanWord(w),
@@ -274,6 +250,7 @@
 
         function speakSingleWord(word) {
             window.speechSynthesis.cancel();
+            // Limpiamos la palabra de símbolos para que el TTS la pronuncie mejor
             const wordToSpeak = cleanWord(word);
             const speed = parseFloat(document.getElementById('speed-selector').value);
             const utterance = new SpeechSynthesisUtterance(wordToSpeak);
@@ -284,7 +261,7 @@
 
         function toggleRecording() {
             if (!recognition) {
-                showFeedback("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Safari.");
+                showFeedback("Tu navegador no soporta reconocimiento de voz.");
                 return;
             }
 
@@ -297,13 +274,7 @@
                 }
                 finalTranscript = "";
                 startVisualRecording();
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.error("Recognition start error:", e);
-                    stopVisualRecording();
-                    showFeedback("Error al iniciar grabación. Recarga la página.");
-                }
+                recognition.start();
             }
         }
 
@@ -337,7 +308,8 @@
         }
 
         async function analyzePronunciation(target, spoken) {
-            const systemPrompt = "Analyze the user's spoken text compared to the target text in English. Ignore special characters. Return a JSON object with a 'results' array: { 'word': string, 'isCorrect': boolean }.";
+            // El prompt instruye a ignorar caracteres especiales en la evaluación
+            const systemPrompt = "Analyze the user's spoken text compared to the target text in English. Ignore special characters like #, *, !, quotes, etc. Focus on phonetic accuracy. Return a JSON object with a 'results' array where each element is { 'word': string, 'isCorrect': boolean }. Keep the word exactly as provided in the target text.";
             const userQuery = `Target: "${target}"\nSpoken: "${spoken}"`;
 
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
@@ -374,13 +346,19 @@
 
         function updateUI(analysis) {
             let correctCount = 0;
+            
             originalWords.forEach((wordObj) => {
-                const aiResult = analysis.results.find(r => cleanWord(r.word) === wordObj.clean);
+                // Buscamos coincidencia limpiando ambos términos para asegurar el match
+                const aiResult = analysis.results.find(r => 
+                    cleanWord(r.word) === wordObj.clean
+                );
+                
                 if (aiResult) {
                     wordObj.status = aiResult.isCorrect ? 'correct' : 'incorrect';
                 } else {
                     wordObj.status = 'incorrect';
                 }
+                
                 if (wordObj.status === 'correct') correctCount++;
             });
 
@@ -400,6 +378,7 @@
         function fallbackComparison(transcript) {
             const spokenWordsClean = transcript.toLowerCase().split(/\s+/).map(w => cleanWord(w));
             let correctCount = 0;
+            
             originalWords.forEach(word => {
                 if (spokenWordsClean.includes(word.clean)) {
                     word.status = 'correct';
@@ -408,10 +387,12 @@
                     word.status = 'incorrect';
                 }
             });
+            
             const accuracy = Math.round((correctCount / originalWords.length) * 100);
             document.getElementById('accuracy-bar').style.width = `${accuracy}%`;
             document.getElementById('accuracy-percent').innerText = `${accuracy}%`;
             renderWords();
+            if (accuracy === 100) document.getElementById('success-modal').classList.remove('hidden');
         }
 
         function showFeedback(msg) {
